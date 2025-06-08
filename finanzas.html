@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestor de Finanzas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap y Chart.js -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <!-- Librería para calendario: FullCalendar (estilo y script) -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <style>
+    /* Tus estilos previos */
+    body {
+      background-color: #f8f9fa;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .form-control,
+    .form-select {
+      font-size: 0.9rem;
+    }
+    .table td,
+    .table th {
+      vertical-align: middle;
+      font-size: 0.9rem;
+    }
+    .table th {
+      background-color: #f1f1f1;
+    }
+    .btn-sm {
+      font-size: 0.75rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    canvas {
+      max-height: 220px !important;
+    }
+    .summary-box p {
+      font-size: 1.1rem;
+    }
+    @media (max-width: 768px) {
+      .btn-group-sm .btn {
+        margin-bottom: 5px;
+      }
+    }
+    .toast {
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* Estilos agenda */
+    #calendar {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 12px;
+    position: fixed;
+    z-index: 9999;
+    left: 50%;
+    bottom: 30px;
+    font-size: 16px;
+    transform: translateX(-50%);
+    transition: visibility 0s, opacity 0.5s ease-in-out;
+    opacity: 0;
+  }
+  .toast.show {
+    visibility: visible;
+    opacity: 1;
+  }
+  .toast.success {
+    background-color: #28a745;
+  }
+  .toast.error {
+    background-color: #dc3545;
+  }
+
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <h1 class="text-center text-primary">Gestor de Finanzas</h1>
+
+    <!-- Formulario y Filtros lado a lado -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="text-primary">Agregar Movimiento</h5>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="date" id="date" class="form-control" placeholder="Fecha" />
+              </div>
+              <div class="col-6">
+                <input
+                  type="text"
+                  id="description"
+                  class="form-control"
+                  placeholder="Descripción"
+                />
+              </div>
+              <div class="col-6">
+                <input
+                  type="text"
+                  id="amount"
+                  class="form-control"
+                  placeholder="Monto"
+                  inputmode="numeric"
+                />
+              </div>
+              <div class="col-6">
+                <select id="type" class="form-select">
+                  <option value="income">Ingreso</option>
+                  <option value="expense">Gasto</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <select id="category" class="form-select">
+                  <option value="general">General</option>
+                  <option value="alimentacion">Alimentación</option>
+                  <option value="transporte">Transporte</option>
+                  <option value="servicios">Servicios</option>
+                  <option value="entretenimiento">Entretenimiento</option>
+                </select>
+              </div>
+              <div class="col-12 d-grid">
+                <button onclick="addTransaction()" class="btn btn-primary">Agregar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="text-primary">Filtrar por Fecha</h5>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="date" id="filterFrom" class="form-control" placeholder="Desde" />
+              </div>
+              <div class="col-6">
+                <input type="date" id="filterTo" class="form-control" placeholder="Hasta" />
+              </div>
+              <div class="col-12 btn-group-sm d-flex flex-wrap gap-2 mt-2">
+                <button onclick="filterTransactions()" class="btn btn-secondary">
+                  Filtrar
+                </button>
+                <button onclick="resetFilter()" class="btn btn-outline-secondary">
+                  Reiniciar
+                </button>
+                <select id="exportType" class="form-select w-auto">
+                  <option value="all">Todo</option>
+                  <option value="income">Ingresos</option>
+                  <option value="expense">Gastos</option>
+                </select>
+                <button id="btnExport" class="btn btn-success">Exportar Excel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <input
+          type="text"
+          class="form-control mb-2"
+          placeholder="Buscar descripción..."
+          oninput="searchDescription(this.value)"
+        />
+      </div>
+    </div>
+
+    <!-- Resumen y Gráfico lado a lado -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body text-center summary-box">
+            <h5 class="text-primary">Resumen</h5>
+            <div class="row">
+              <div class="col-4">
+                <h6>Ingresos</h6>
+                <p class="text-success fw-bold" id="totalIncome">$0</p>
+              </div>
+              <div class="col-4">
+                <h6>Gastos</h6>
+                <p class="text-danger fw-bold" id="totalExpense">$0</p>
+              </div>
+              <div class="col-4">
+                <h6>Balance</h6>
+                <p id="balanceContainer" class="fw-bold" style="color: black;">$0</p>
+              </div>
+            </div>
+            <p class="text-muted">
+              Mes actual: junio 2025 – Balance: <span id="monthlyBalance">$0</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="text-primary text-center">Gráficos</h5>
+            <canvas id="financeChart" class="mb-3"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial de movimientos -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="text-primary">Historial de Movimientos</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Monto</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="transactionBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  <div id="toast" class="toast"></div>
+
+ <script>
+  // Formateador para pesos colombianos
+  const formatoCOP = new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0,
+  });
+
+  // Mostrar toast
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = `toast show ${type}`;
+    setTimeout(() => {
+      toast.className = "toast";
+    }, 3000);
+  }
+
+  // Datos de movimientos
+  let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+
+  let editIndex = null;
+
+  function addTransaction() {
+    const date = document.getElementById("date").value;
+    const description = document.getElementById("description").value.trim();
+    const amountInput = document.getElementById("amount").value;
+    const amount = parseFloat(amountInput);
+    const type = document.getElementById("type").value;
+    const category = document.getElementById("category").value;
+
+    // Validaciones mejoradas
+    if (!date || !description || amountInput === "" || isNaN(amount)) {
+      showToast("Por favor completa todos los campos correctamente.", "error");
+      return;
+    }
+    if (amount <= 0) {
+      showToast("El monto debe ser mayor a cero.", "error");
+      return;
+    }
+
+    const transaction = { date, description, amount, type, category };
+
+    if (editIndex !== null) {
+      transactions[editIndex] = transaction;
+      editIndex = null;
+      showToast("Transacción actualizada correctamente.", "success");
+    } else {
+      transactions.push(transaction);
+      showToast("Transacción agregada correctamente.", "success");
+    }
+
+    saveTransactions();
+    resetForm();
+    renderTransactions();
+    updateSummaryAndCharts();
+  }
+
+  function resetForm() {
+    document.getElementById("date").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("amount").value = "";
+    document.getElementById("type").value = "income";
+    document.getElementById("category").value = "general";
+    editIndex = null;
+  }
+
+  function renderTransactions(list = transactions) {
+    const tbody = document.getElementById("transactionBody");
+    tbody.innerHTML = "";
+    list.forEach((t, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${t.date}</td>
+        <td>${t.description}</td>
+        <td style="color:${t.type === "income" ? "green" : "red"}">${formatoCOP.format(t.amount)}</td>
+        <td>${t.type}</td>
+        <td>${t.category}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="editTransaction(${i})">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTransaction(${i})">Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function editTransaction(index) {
+    const t = transactions[index];
+    document.getElementById("date").value = t.date;
+    document.getElementById("description").value = t.description;
+    document.getElementById("amount").value = t.amount;
+    document.getElementById("type").value = t.type;
+    document.getElementById("category").value = t.category;
+    editIndex = index;
+  }
+
+  function deleteTransaction(index) {
+    if (confirm("¿Eliminar este movimiento?")) {
+      transactions.splice(index, 1);
+      saveTransactions();
+      renderTransactions();
+      updateSummaryAndCharts();
+      showToast("Transacción eliminada.", "success");
+    }
+  }
+
+  function saveTransactions() {
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+  }
+
+  function filterTransactions() {
+    const from = document.getElementById("filterFrom").value;
+    const to = document.getElementById("filterTo").value;
+    let filtered = transactions;
+
+    if (from) filtered = filtered.filter((t) => t.date >= from);
+    if (to) filtered = filtered.filter((t) => t.date <= to);
+
+    renderTransactions(filtered);
+  }
+
+  function resetFilter() {
+    document.getElementById("filterFrom").value = "";
+    document.getElementById("filterTo").value = "";
+    renderTransactions(transactions);
+  }
+
+  function searchDescription(query) {
+    const filtered = transactions.filter((t) =>
+      t.description.toLowerCase().includes(query.toLowerCase())
+    );
+    renderTransactions(filtered);
+  }
+
+  document.getElementById("btnExport").addEventListener("click", () => {
+    const exportType = document.getElementById("exportType").value;
+    let data = transactions;
+
+    if (exportType !== "all") data = transactions.filter((t) => t.type === exportType);
+
+    if (data.length === 0) {
+      showToast("No hay datos para exportar.", "error");
+      return;
+    }
+
+    const ws_data = [
+      ["Fecha", "Descripción", "Monto", "Tipo", "Categoría"],
+      ...data.map((t) => [t.date, t.description, t.amount, t.type, t.category]),
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Movimientos");
+    XLSX.writeFile(wb, "movimientos.xlsx");
+  });
+
+  function updateSummaryAndCharts() {
+    const totalIncome = transactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const totalExpense = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+
+    document.getElementById("totalIncome").textContent = formatoCOP.format(totalIncome);
+    document.getElementById("totalExpense").textContent = formatoCOP.format(totalExpense);
+    const balance = totalIncome - totalExpense;
+    const balanceContainer = document.getElementById("balanceContainer");
+    balanceContainer.textContent = formatoCOP.format(balance);
+    balanceContainer.style.color = balance >= 0 ? "green" : "red";
+
+    const today = new Date();
+    const monthStr = (today.getMonth() + 1).toString().padStart(2, "0");
+    const yearStr = today.getFullYear();
+
+    const monthlyIncome = transactions
+      .filter(
+        (t) => t.type === "income" && t.date.startsWith(`${yearStr}-${monthStr}`)
+      )
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const monthlyExpense = transactions
+      .filter(
+        (t) => t.type === "expense" && t.date.startsWith(`${yearStr}-${monthStr}`)
+      )
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const monthlyBalance = monthlyIncome - monthlyExpense;
+    document.getElementById("monthlyBalance").textContent = formatoCOP.format(monthlyBalance);
+
+    renderCharts();
+  }
+
+  let financeChartInstance = null;
+  let categoryChartInstance = null;
+
+  function renderCharts() {
+    const ctx1 = document.getElementById("financeChart").getContext("2d");
+    const totalIncome = transactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const totalExpense = transactions
+      .filter((t) => t.type === "expense")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+
+    if (financeChartInstance) financeChartInstance.destroy();
+
+    financeChartInstance = new Chart(ctx1, {
+      type: "doughnut",
+      data: {
+        labels: ["Ingresos", "Gastos"],
+        datasets: [
+          {
+            data: [totalIncome, totalExpense],
+            backgroundColor: ["#198754", "#dc3545"],
+          },
+        ],
+      },
+      options: {
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: { enabled: true },
+        },
+        responsive: true,
+        maintainAspectRatio: false,
+      },
+    });
+
+    const ctx2 = document.getElementById("categoryChart").getContext("2d");
+    const categories = {};
+    transactions.forEach((t) => {
+      categories[t.category] = (categories[t.category] || 0) + t.amount;
+    });
+
+    if (categoryChartInstance) categoryChartInstance.destroy();
+
+    categoryChartInstance = new Chart(ctx2, {
+      type: "bar",
+      data: {
+        labels: Object.keys(categories),
+        datasets: [
+          {
+            label: "Monto total",
+            data: Object.values(categories),
+            backgroundColor: "#0d6efd",
+          },
+        ],
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true },
+        },
+        responsive: true,
+        maintainAspectRatio: false,
+      },
+    });
+  }
+
+  const amountInput = document.getElementById("amount");
+
+amountInput.addEventListener("input", (e) => {
+  let value = e.target.value;
+
+  // Quitar todo lo que no sea número, coma o punto
+  value = value.replace(/[^0-9.,]/g, "");
+
+  // Reemplazar puntos por comas para unificar decimal (solo uno)
+  let parts = value.split(",");
+
+  // Si hay más de una coma, unir todo excepto la primera coma
+  if (parts.length > 2) {
+    parts = [parts.shift(), parts.join("")];
+  }
+
+  // Parte entera: quitar puntos, luego agregar puntos como separador de miles
+  let integerPart = parts[0].replace(/\./g, "");
+  integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  // Parte decimal (máximo 2 dígitos)
+  let decimalPart = parts[1] ? parts[1].slice(0, 2) : "";
+
+  // Reconstruir el valor
+  e.target.value = decimalPart ? integerPart + "," + decimalPart : integerPart;
+});
+
+// Al agregar o editar, convertir el monto formateado a número decimal para almacenar y calcular
+function parseAmount(value) {
+  if (!value) return 0;
+  // Quitar puntos y cambiar coma por punto para parsear
+  value = value.replace(/\./g, "").replace(/,/g, ".");
+  return parseFloat(value) || 0;
+}
+
+// Modifica la función addTransaction para usar parseAmount en lugar de parseFloat
+function addTransaction() {
+  const date = document.getElementById("date").value;
+  const description = document.getElementById("description").value.trim();
+  const amountRaw = document.getElementById("amount").value;
+  const amount = parseAmount(amountRaw);
+  const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+
+  if (!date || !description || isNaN(amount) || amount <= 0) {
+    alert("Por favor completa todos los campos correctamente y asegúrate que el monto sea mayor a cero.");
+    return;
+  }
+
+  const transaction = { date, description, amount, type, category };
+
+  if (editIndex !== null) {
+    transactions[editIndex] = transaction;
+    editIndex = null;
+  } else {
+    transactions.push(transaction);
+  }
+
+  saveTransactions();
+  resetForm();
+  renderTransactions();
+  updateSummaryAndCharts();
+}
+
+// Modifica la función editTransaction para que el input muestre monto formateado
+function editTransaction(index) {
+  const t = transactions[index];
+  document.getElementById("date").value = t.date;
+  document.getElementById("description").value = t.description;
+  
+  // Formatear monto para mostrar en input
+  document.getElementById("amount").value = t.amount
+    .toFixed(2) // 2 decimales
+    .replace(".", ",") // reemplazar decimal punto por coma
+    .replace(/\B(?=(\d{3})+(?!\d))/g, "."); // miles con puntos
+  
+  document.getElementById("type").value = t.type;
+  document.getElementById("category").value = t.category;
+  editIndex = index;
+}
+
+
+  renderTransactions();
+  updateSummaryAndCharts();
+</script>
+
+</body>
+</html>
