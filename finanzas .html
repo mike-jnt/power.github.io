@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestor de Finanzas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap y Chart.js -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <!-- Librería para calendario: FullCalendar (estilo y script) -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+
+
+  <!-- Firebase (usando CDN) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+
+
+  <style>
+    /* Tus estilos previos */
+    body {
+      background-color: #f8f9fa;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .form-control,
+    .form-select {
+      font-size: 0.9rem;
+    }
+    .table td,
+    .table th {
+      vertical-align: middle;
+      font-size: 0.9rem;
+    }
+    .table th {
+      background-color: #f1f1f1;
+    }
+    .btn-sm {
+      font-size: 0.75rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    canvas {
+      max-height: 220px !important;
+    }
+    .summary-box p {
+      font-size: 1.1rem;
+    }
+    @media (max-width: 768px) {
+      .btn-group-sm .btn {
+        margin-bottom: 5px;
+      }
+    }
+    .toast {
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* Estilos agenda */
+    #calendar {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+
+    .toast {
+    visibility: hidden;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 12px;
+    position: fixed;
+    z-index: 9999;
+    left: 50%;
+    bottom: 30px;
+    font-size: 16px;
+    transform: translateX(-50%);
+    transition: visibility 0s, opacity 0.5s ease-in-out;
+    opacity: 0;
+  }
+  .toast.show {
+    visibility: visible;
+    opacity: 1;
+  }
+  .toast.success {
+    background-color: #28a745;
+  }
+  .toast.error {
+    background-color: #dc3545;
+  }
+
+  /* Estilos personalizados por celda */
+.tipo-ingreso {
+  color: #198754;
+  font-weight: bold;
+}
+
+.tipo-gasto {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.estado-pagado {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  font-weight: bold;
+}
+
+.estado-pendiente {
+  background-color: #f8d7da;
+  color: #842029;
+  font-weight: bold;
+}
+
+.categoria {
+  background-color: #e9ecef;
+  font-style: italic;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: 5px;
+  display: inline-block;
+}
+
+.seccion-azul {
+  background-color: #e7f1ff;
+}
+
+.seccion-amarilla {
+  background-color: #fff9e6;
+}
+
+.seccion-verde {
+  background-color: #e6f4ea;
+}
+
+.seccion-lila {
+  background-color: #f3e8ff;
+}
+
+.seccion-rosada {
+  background-color: #fce8ec;
+}
+
+.seccion-gris {
+  background-color: #f8f9fa;
+}
+
+/* General modo oscuro */
+body.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Tarjetas y cajas */
+body.dark-mode .card,
+body.dark-mode .modal-content {
+  background-color: #1e1e1e !important;
+  color: #f1f1f1 !important;
+  border-color: #333 !important;
+}
+
+/* Inputs y selects */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea,
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background-color: #2a2a2a !important;
+  color: #f1f1f1 !important;
+  border-color: #555 !important;
+}
+body.dark-mode .form-control::placeholder {
+  color: #aaa !important;
+}
+
+/* Tablas */
+body.dark-mode .table {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+body.dark-mode .table th,
+body.dark-mode .table td {
+  color: #e0e0e0;
+  border-color: #555;
+}
+
+/* Botones */
+body.dark-mode .btn {
+  font-weight: 600;
+}
+body.dark-mode .btn-outline-dark {
+  color: #f1f1f1;
+  border-color: #888;
+}
+body.dark-mode .btn-outline-dark:hover {
+  background-color: #333;
+  border-color: #aaa;
+}
+
+/* Toast */
+body.dark-mode .toast {
+  background-color: #2c2c2c;
+  color: #f1f1f1;
+  border: 1px solid #444;
+}
+
+/* Encabezados */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+  color: #ffffff !important;
+  font-weight: bold;
+}
+
+/* Corrección texto oscuro en modo oscuro */
+body.dark-mode .text-dark {
+  color: #ccc !important;
+}
+
+/* 🎨 Colores por sección adaptados */
+
+/* Azul suave oscuro para "Agregar movimiento" */
+body.dark-mode .seccion-azul {
+  background-color: #183b5f !important;
+}
+
+/* Amarillo suave oscuro para "Filtros" */
+body.dark-mode .seccion-amarilla {
+  background-color: #4a3e00 !important;
+}
+
+/* Verde suave oscuro para "Resumen finanzas" */
+body.dark-mode .seccion-verde {
+  background-color: #1b3e32 !important;
+}
+
+/* Lila oscuro para "Gráficos" */
+body.dark-mode .seccion-lila {
+  background-color: #35284a !important;
+}
+
+/* Rosa oscuro para "Resumen de deudas" */
+body.dark-mode .seccion-rosada {
+  background-color: #512e3c !important;
+}
+
+/* Gris oscuro para "Historial" */
+body.dark-mode .seccion-gris {
+  background-color: #2a2a2a !important;
+}
+
+
+/* Estilo tabla de historial */
+#historialTable {
+  font-size: 0.95rem;
+  border-collapse: collapse;
+}
+
+#historialTable thead {
+  background-color: #007bff;
+  color: white;
+}
+
+body.dark-mode #historialTable thead {
+  background-color: #0056b3;
+  color: #fff;
+}
+
+#historialTable th, #historialTable td {
+  padding: 8px 12px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid #dee2e6;
+}
+
+body.dark-mode #historialTable th,
+body.dark-mode #historialTable td {
+  border-color: #444;
+}
+
+#historialTable tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+body.dark-mode #historialTable tbody tr:nth-child(even) {
+  background-color: #2a2a2a;
+}
+
+#historialTable tbody tr:hover {
+  background-color: #e2e6ea;
+}
+body.dark-mode #historialTable tbody tr:hover {
+  background-color: #3a3a3a;
+}
+
+/* 🔧 Forzar texto negro en la tabla de historial incluso en modo oscuro */
+body.dark-mode #historialTable,
+body.dark-mode #historialTable th,
+body.dark-mode #historialTable td {
+  color: #000000 !important;
+}
+
+
+
+  </style>
+</head>
+<body>
+
+
+
+ <!-- Modal de Inicio de Sesión -->
+<div class="modal fade show" id="loginModal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);" aria-modal="true" role="dialog">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow">
+      <div class="modal-header">
+        <h5 class="modal-title text-primary">Iniciar Sesión</h5>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="loginUser" class="form-control mb-2" placeholder="Usuario" />
+        <input type="password" id="loginPass" class="form-control mb-3" placeholder="Contraseña" />
+        <div id="loginError" class="text-danger text-center mb-2" style="display: none;">Usuario o contraseña incorrectos</div>
+        <button onclick="login()" class="btn btn-primary w-100">Acceder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="mainContent" style="display: none;">
+	<!-- Botón para cambiar a modo oscuro -->
+<button id="toggleDarkMode" class="btn btn-sm btn-outline-dark">🌙 Modo Oscuro</button>
+
+<a href="index.html" class="btn btn-outline-primary" target="_blank">📊 Ver Agenda</a>
+
+
+  <div class="container py-4">
+    <h1 class="text-center text-primary">Gestor de Finanzas</h1>
+
+    <!-- Formulario y Filtros lado a lado -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div  class="card-body seccion-azul" >
+            <h5 class="text-primary">Agregar Movimiento</h5>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="date" id="date" class="form-control" placeholder="Fecha" />
+              </div>
+              <div class="col-6">
+                <input
+                  type="text"
+                  id="description"
+                  class="form-control"
+                  placeholder="Descripción"
+                />
+              </div>
+              <div class="col-6">
+                <input 
+                type="text" 
+                class="form-control" 
+                id="amount" 
+                placeholder="Monto" 
+                required
+                />
+
+              </div>
+              <div class="col-6">
+                <select id="type" class="form-select">
+                  <option value="income">Ingreso</option>
+                  <option value="expense">Gasto</option>
+                </select>
+              </div>
+
+              <select id="category" class="form-select">
+  <option value="general">General</option>
+
+  <!-- Categorías Personales -->
+  <optgroup label="Personales">
+    <option value="alimentacion">Alimentación</option>
+    <option value="transporte">Transporte</option>
+    <option value="servicios">Servicios</option>
+    <option value="entretenimiento">Entretenimiento</option>
+    <option value="salud">Salud</option>
+    <option value="educacion">Educación</option>
+    <option value="ropa">Ropa y calzado</option>
+    <option value="hogar">Hogar</option>
+    <option value="mascotas">Mascotas</option>
+    <option value="ahorros">Ahorros</option>
+    <option value="deudas_personales">Deudas personales</option>
+  </optgroup>
+
+  <!-- Categorías del Negocio -->
+  <optgroup label="Negocio">
+    <option value="ventas">Ventas</option>
+    <option value="inversion">Inversión inicial</option>
+    <option value="proveedores">Proveedores</option>
+    <option value="publicidad">Publicidad</option>
+    <option value="mantenimiento">Mantenimiento</option>
+    <option value="nomina">Nómina</option>
+    <option value="servicios_negocio">Servicios (negocio)</option>
+    <option value="impuestos">Impuestos</option>
+    <option value="alquiler_local">Alquiler de local</option>
+    <option value="insumos">Compras de insumos</option>
+    <option value="deudas_negocio">Deudas del negocio</option>
+  </optgroup>
+</select>
+
+<div class="col-12" id="pagoContainer" style="display: none;">
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="deudaPagada" />
+    <label class="form-check-label" for="deudaPagada">¿Ya fue pagada?</label>
+  </div>
+</div>
+
+
+              <div class="col-12 d-grid">
+                <button onclick="addTransaction()" class="btn btn-primary">Agregar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-body seccion-amarilla">
+
+            <h5 class="text-primary">Filtrar por Fecha</h5>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="date" id="filterFrom" class="form-control" placeholder="Desde" />
+              </div>
+              <div class="col-6">
+                <input type="date" id="filterTo" class="form-control" placeholder="Hasta" />
+              </div>
+              <div class="col-12 btn-group-sm d-flex flex-wrap gap-2 mt-2">
+                <button onclick="filterTransactions()" class="btn btn-secondary">
+                  Filtrar
+                </button>
+                <button onclick="resetFilter()" class="btn btn-outline-secondary">
+                  Reiniciar
+                </button>
+                <select id="exportType" class="form-select w-auto">
+                  <option value="all">Todo</option>
+                  <option value="income">Ingresos</option>
+                  <option value="expense">Gastos</option>
+                </select>
+                <button id="btnExport" class="btn btn-success">Exportar Excel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <select class="form-select mb-2" onchange="filterByCategory(this.value)">
+  <option value="">Filtrar por categoría</option>
+  <option value="alimentacion">Alimentación</option>
+  <option value="transporte">Transporte</option>
+  <option value="servicios">Servicios</option>
+  <option value="entretenimiento">Entretenimiento</option>
+  <option value="salud">Salud</option>
+  <option value="educacion">Educación</option>
+  <option value="ropa">Ropa y calzado</option>
+  <option value="hogar">Hogar</option>
+  <option value="mascotas">Mascotas</option>
+  <option value="ahorros">Ahorros</option>
+  <option value="deudas_personales">Deudas personales</option>
+  <option value="ventas">Ventas</option>
+  <option value="inversion">Inversión inicial</option>
+  <option value="proveedores">Proveedores</option>
+  <option value="publicidad">Publicidad</option>
+  <option value="mantenimiento">Mantenimiento</option>
+  <option value="nomina">Nómina</option>
+  <option value="servicios_negocio">Servicios (negocio)</option>
+  <option value="impuestos">Impuestos</option>
+  <option value="alquiler_local">Alquiler de local</option>
+  <option value="insumos">Compras de insumos</option>
+  <option value="deudas_negocio">Deudas del negocio</option>
+</select>
+
+      </div>
+    </div>
+
+    <!-- Resumen y Gráfico lado a lado -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body text-center summary-box seccion-verde">
+
+            <h5 class="text-primary">Resumen</h5>
+            <div class="row">
+              <div class="col-4">
+                <h6>Ingresos</h6>
+                <p class="text-success fw-bold" id="totalIncome">$0</p>
+              </div>
+              <div class="col-4">
+                <h6>Gastos</h6>
+                <p class="text-danger fw-bold" id="totalExpense">$0</p>
+              </div>
+              <div class="col-4">
+                <h6>Balance</h6>
+                <p id="balanceContainer" class="fw-bold" style="color: black;">$0</p>
+              </div>
+            </div>
+            <p class="text-muted">
+              Mes actual: junio 2025 – Balance: <span id="monthlyBalance">$0</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-body seccion-lila">
+
+            <h5 class="text-primary text-center">Gráficos</h5>
+            <canvas id="financeChart" class="mb-3"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico por Categoría -->
+<div class="card mb-4">
+  <div class="card-body seccion-lila">
+
+    <h5 class="text-primary text-center">Distribución por Categoría</h5>
+    <canvas id="categoriaComparativaChart" height="220"></canvas>
+  </div>
+</div>
+
+
+  <!-- Resumen de Deudas -->
+<div class="card mb-4">
+  <div class="card-body text-center seccion-rosada">
+
+    <h5 class="text-danger">Resumen de Deudas</h5>
+    <div class="row">
+      <div class="col-md-6">
+        <h6 class="text-secondary">Deudas Personales</h6>
+        <p>Pendientes: <span id="deudaPersonalPendiente" class="fw-bold text-danger">$0</span></p>
+        <p>Pagadas: <span id="deudaPersonalPagada" class="fw-bold text-success">$0</span></p>
+      </div>
+      <div class="col-md-6">
+        <h6 class="text-secondary">Deudas del Negocio</h6>
+        <p>Pendientes: <span id="deudaNegocioPendiente" class="fw-bold text-danger">$0</span></p>
+        <p>Pagadas: <span id="deudaNegocioPagada" class="fw-bold text-success">$0</span></p>
+      </div>
+    </div>
+    <hr />
+    <div class="row">
+      <div class="col-6 offset-3">
+        <h6 class="text-dark">Total Deudas Pendientes</h6>
+        <p id="deudaTotalPendiente" class="fw-bold text-warning">$0</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+    <!-- Historial de movimientos -->
+    <div class="card seccion-gris mb-4">
+      <div class="card-body seccion-gris">
+        <h5 class="text-center text-primary">📄 Historial de Movimientos</h5>
+        <div class="table-responsive">
+          <table class="table table-bordered" id="historialTable">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Monto</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Acciones</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="transactionBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  <div id="toast" class="toast"></div>
+
+  
+
+</div>
+ 
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+ <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+ <script>
+  // Tu configuración personalizada
+  const firebaseConfig = {
+    apiKey: "AIzaSyC1B4u7mFzttO-z68-DaQNJlVRsDfMGyUc",
+    authDomain: "gestor-finanzas-499a2.firebaseapp.com",
+    projectId: "gestor-finanzas-499a2",
+    storageBucket: "gestor-finanzas-499a2.firebasestorage.app",
+    messagingSenderId: "45639325353",
+    appId: "1:45639325353:web:562ef270e7db8120ee3bb8",
+    measurementId: "G-HKELST7ZH0"
+  };
+
+  // Inicializa Firebase y Firestore
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+
+  
+
+  // Mostrar toast
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = `toast show ${type}`;
+    setTimeout(() => {
+      toast.className = "toast";
+    }, 3000);
+  }
+
+</script>
+
+<script>
+  const formatoCOP = new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0
+  });
+
+  const amountInput = document.getElementById("amount");
+
+  // ⚠️ Asegúrate que este evento se registre una vez que el DOM esté completamente cargado
+  if (amountInput) {
+    amountInput.addEventListener("input", (e) => {
+      const valorLimpio = e.target.value.replace(/\D/g, "");
+      const numero = parseInt(valorLimpio || "0", 10);
+      e.target.value = numero ? formatoCOP.format(numero) : "";
+    });
+  }
+
+  // ✅ Función para extraer número limpio al guardar
+  function obtenerMontoLimpio() {
+    const valor = document.getElementById("amount").value;
+    return parseInt(valor.replace(/\D/g, ""), 10) || 0;
+  }
+</script>
+
+ <script>
+
+
+let categoryChartInstance = null;
+
+let transactions = [];
+
+// Cargar datos desde Firestore al iniciar
+db.collection("transactions").orderBy("date", "desc").onSnapshot((snapshot) => {
+  transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  renderTransactions();
+  updateSummaryAndCharts();
+});
+let editIndex = null;
+
+
+
+
+function addTransaction() {
+  const date = document.getElementById("date").value;
+  const description = document.getElementById("description").value.trim();
+  const amountRaw = document.getElementById("amount").value;
+  const amount = parseAmount(amountRaw);
+  const type = document.getElementById("type").value;
+  const category = document.getElementById("category").value;
+  const pagada = document.getElementById("deudaPagada").checked;
+
+  if (!date || !description || isNaN(amount) || amount <= 0) {
+    alert("Por favor completa todos los campos correctamente y asegúrate que el monto sea mayor a cero.");
+    return;
+  }
+
+  const transaction = { date, description, amount, type, category, pagada };
+
+  if (editIndex !== null) {
+    const id = transactions[editIndex].id;
+    db.collection("transactions").doc(id).update(transaction);
+    editIndex = null;
+    showToast("Transacción actualizada correctamente.", "success");
+  } else {
+    db.collection("transactions").add(transaction);
+    showToast("Transacción agregada correctamente.", "success");
+  }
+
+  resetForm();
+}
+
+
+
+
+  // ✅ Función para extraer número limpio al guardar
+  function obtenerMontoLimpio() {
+    const valor = document.getElementById("amount").value;
+    return parseInt(valor.replace(/\D/g, ""), 10) || 0;
+  }
+
+  function resetForm() {
+    document.getElementById("date").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("amount").value = "";
+    document.getElementById("type").value = "income";
+    document.getElementById("category").value = "general";
+    editIndex = null;
+    document.getElementById("deudaPagada").checked = false;
+document.getElementById("pagoContainer").style.display = "none";
+
+  }
+
+  function renderTransactions(list = transactions) {
+    const tbody = document.getElementById("transactionBody");
+    tbody.innerHTML = "";
+    list.forEach((t, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+  <td>${t.date}</td>
+  <td>${t.description}</td>
+  <td class="${t.type === "income" ? "tipo-ingreso" : "tipo-gasto"}">
+    ${formatoCOP.format(t.amount)}
+  </td>
+  <td>${t.type === "income" ? "Ingreso" : "Gasto"}</td>
+  <td><span class="categoria">${t.category}</span></td>
+  <td class="${
+    (t.category === "deudas_personales" || t.category === "deudas_negocio")
+      ? (t.pagada ? "estado-pagado" : "estado-pendiente")
+      : ""
+  }">
+    ${
+      (t.category === "deudas_personales" || t.category === "deudas_negocio")
+        ? (t.pagada ? "Pagada ✅" : "Pendiente ❌")
+        : "-"
+    }
+  </td>
+  <td>
+  <button class="btn btn-sm btn-outline-primary me-1" onclick="editTransaction(${i})">
+    ✏️
+  </button>
+  <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(${i})">
+    🗑️
+  </button>
+</td>
+
+`;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+
+
+
+  function deleteTransaction(index) {
+    if (confirm("¿Eliminar este movimiento?")) {
+      const id = transactions[index].id;
+      db.collection("transactions").doc(id).delete();
+      renderTransactions();
+      updateSummaryAndCharts();
+      showToast("Transacción eliminada.", "success");
+    }
+  }
+
+
+  function filterTransactions() {
+  const fromStr = document.getElementById("filterFrom").value;
+  const toStr = document.getElementById("filterTo").value;
+  const type = document.getElementById("exportType").value; // income, expense, all
+
+  let filtered = transactions;
+
+  // Filtro por fecha desde
+  if (fromStr) {
+    const fromDate = new Date(fromStr);
+    filtered = filtered.filter((t) => new Date(t.date) >= fromDate);
+  }
+
+  // Filtro por fecha hasta
+  if (toStr) {
+    const toDate = new Date(toStr);
+    filtered = filtered.filter((t) => new Date(t.date) <= toDate);
+  }
+
+  // Filtro por tipo (ingreso o gasto)
+  if (type !== "all") {
+    filtered = filtered.filter((t) => t.type === type);
+  }
+
+  renderTransactions(filtered);
+}
+
+
+
+  function resetFilter() {
+  document.getElementById("filterFrom").value = "";
+  document.getElementById("filterTo").value = "";
+  document.getElementById("exportType").value = "all";
+  renderTransactions(transactions);
+}
+
+
+
+  function filterByCategory(category) {
+  if (!category) {
+    renderTransactions(transactions);
+    return;
+  }
+
+  const filtered = transactions.filter((t) => t.category === category);
+  renderTransactions(filtered);
+}
+
+ 
+ document.getElementById("btnExport").addEventListener("click", async () => {
+  const exportType = document.getElementById("exportType").value;
+  let data = transactions;
+
+  if (exportType !== "all") {
+    data = transactions.filter((t) => t.type === exportType);
+  }
+
+  if (data.length === 0) {
+    showToast("No hay datos para exportar.", "error");
+    return;
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Finanzas");
+
+  // 🟦 Título principal
+  sheet.mergeCells("A1", "F1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "📊 Reporte Detallado de Finanzas";
+  titleCell.font = { size: 16, bold: true, color: { argb: "FF0D1B2A" } };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFCCE5FF" }
+  };
+
+  // 🟨 Encabezado de columnas
+  sheet.columns = [
+    { header: "Fecha", key: "date", width: 15 },
+    { header: "Descripción", key: "description", width: 35 },
+    { header: "Monto", key: "amount", width: 20 },
+    { header: "Tipo", key: "type", width: 12 },
+    { header: "Categoría", key: "category", width: 20 },
+    { header: "Estado", key: "estado", width: 18 }
+  ];
+
+  // ✅ Agrega las filas de movimientos
+  data.forEach((t) => {
+    sheet.addRow({
+      date: t.date,
+      description: t.description,
+      amount: t.amount.toLocaleString('es-CO', { style: 'currency', currency: 'COP' }),
+      type: t.type === "income" ? "Ingreso" : "Gasto",
+      category: t.category,
+      estado: (t.category.includes("deuda"))
+        ? (t.pagada ? "Pagada ✅" : "Pendiente ❌")
+        : "-"
+    });
+  });
+
+  // 🎨 Estilo de encabezado
+  const headerRow = sheet.getRow(2);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: "center" };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFFFF2CC" }
+    };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" }
+    };
+  });
+
+  // 🎨 Estilo para todas las filas
+  sheet.eachRow((row, index) => {
+    if (index > 2) {
+      row.eachCell((cell) => {
+        cell.alignment = { horizontal: "center" };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" }
+        };
+      });
+    }
+  });
+
+  // 📊 Cálculo de resumen
+  const totalIncome = data
+    .filter(t => t.type === "income")
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const totalExpense = data
+    .filter(t => {
+      const esDeuda = t.category === "deudas_personales" || t.category === "deudas_negocio";
+      return t.type === "expense" && (!esDeuda || t.pagada);
+    })
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const balance = totalIncome - totalExpense;
+
+  // ➕ Fila de resumen
+  sheet.addRow([]);
+  sheet.addRow(["Resumen"]);
+  sheet.addRow(["Total Ingresos", totalIncome.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })]);
+  sheet.addRow(["Total Gastos", totalExpense.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })]);
+  sheet.addRow(["Balance", balance.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })]);
+
+  const resumenStart = sheet.lastRow.number - 2;
+
+  for (let i = resumenStart; i <= sheet.lastRow.number; i++) {
+    const row = sheet.getRow(i);
+    row.getCell(1).font = { bold: true };
+    row.getCell(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFDFFFD6" } // verde suave
+    };
+    row.getCell(1).alignment = { horizontal: "left" };
+    row.getCell(2).alignment = { horizontal: "right" };
+    row.getCell(2).font = { bold: true };
+  }
+
+  // 🕓 Generar nombre del archivo con fecha/hora actual
+  const now = new Date();
+  const fecha = now.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+  const hora = now.toTimeString().slice(0, 5).replace(":", "-"); // HH-MM
+  const nombreArchivo = `Reporte_Finanzas_${fecha}_${hora}.xlsx`;
+
+  // ⬇️ Generar y descargar el archivo
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+
+
+  function updateSummaryAndCharts() {
+    const totalIncome = transactions
+      .filter((t) => t.type === "income")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const totalExpense = transactions
+  .filter((t) => {
+    const esDeuda = t.category === "deudas_personales" || t.category === "deudas_negocio";
+    return t.type === "expense" && (!esDeuda || t.pagada);
+  })
+  .reduce((acc, cur) => acc + cur.amount, 0);
+
+
+    document.getElementById("totalIncome").textContent = formatoCOP.format(totalIncome);
+    document.getElementById("totalExpense").textContent = formatoCOP.format(totalExpense);
+    const balance = totalIncome - totalExpense;
+    const balanceContainer = document.getElementById("balanceContainer");
+    balanceContainer.textContent = formatoCOP.format(balance);
+    balanceContainer.style.color = balance >= 0 ? "green" : "red";
+
+    const today = new Date();
+    const monthStr = (today.getMonth() + 1).toString().padStart(2, "0");
+    const yearStr = today.getFullYear();
+
+    const monthlyIncome = transactions
+      .filter(
+        (t) => t.type === "income" && t.date.startsWith(`${yearStr}-${monthStr}`)
+      )
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const monthlyExpense = transactions
+      .filter(
+        (t) => t.type === "expense" && t.date.startsWith(`${yearStr}-${monthStr}`)
+      )
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const monthlyBalance = monthlyIncome - monthlyExpense;
+    document.getElementById("monthlyBalance").textContent = formatoCOP.format(monthlyBalance);
+// Cálculos de deudas
+const deudaPersonalPendiente = transactions
+  .filter(t => t.type === "expense" && t.category === "deudas_personales" && !t.pagada)
+  .reduce((acc, t) => acc + t.amount, 0);
+
+const deudaPersonalPagada = transactions
+  .filter(t => t.type === "expense" && t.category === "deudas_personales" && t.pagada)
+  .reduce((acc, t) => acc + t.amount, 0);
+
+const deudaNegocioPendiente = transactions
+  .filter(t => t.type === "expense" && t.category === "deudas_negocio" && !t.pagada)
+  .reduce((acc, t) => acc + t.amount, 0);
+
+const deudaNegocioPagada = transactions
+  .filter(t => t.type === "expense" && t.category === "deudas_negocio" && t.pagada)
+  .reduce((acc, t) => acc + t.amount, 0);
+
+const deudaTotalPendiente = deudaPersonalPendiente + deudaNegocioPendiente;
+
+// Mostrar en el resumen
+document.getElementById("deudaPersonalPendiente").textContent = formatoCOP.format(deudaPersonalPendiente);
+document.getElementById("deudaPersonalPagada").textContent = formatoCOP.format(deudaPersonalPagada);
+document.getElementById("deudaNegocioPendiente").textContent = formatoCOP.format(deudaNegocioPendiente);
+document.getElementById("deudaNegocioPagada").textContent = formatoCOP.format(deudaNegocioPagada);
+document.getElementById("deudaTotalPendiente").textContent = formatoCOP.format(deudaTotalPendiente);
+
+
+
+   renderCharts(transactions);
+
+  }
+
+
+function renderCharts(transactions) {
+  if (!Array.isArray(transactions)) {
+    console.error("Transacciones no es un arreglo válido", transactions);
+    return;
+  }
+
+  // Agrupar por tipo
+  const ingresos = transactions.filter(t => t.type === 'income');
+  const gastos = transactions.filter(t => t.type === 'expense' && (!["deudas_personales", "deudas_negocio"].includes(t.category) || t.pagada));
+
+  // Sumar totales
+  const totalIngresos = ingresos.reduce((sum, t) => sum + t.amount, 0);
+  const totalGastos = gastos.reduce((sum, t) => sum + t.amount, 0);
+
+  // Destruir gráfico anterior si existe
+  if (window.financeChartInstance instanceof Chart) {
+    window.financeChartInstance.destroy();
+  }
+
+  const pieCtx = document.getElementById("financeChart").getContext("2d");
+  window.financeChartInstance = new Chart(pieCtx, {
+    type: 'pie',
+    data: {
+      labels: ['Ingresos', 'Gastos'],
+      datasets: [{
+        data: [totalIngresos, totalGastos],
+        backgroundColor: ['#4caf50', '#f44336']
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+
+  // 🔁 Gráfico comparativo por categoría
+
+  // Agrupar por categoría
+  const categorias = [...new Set(transactions.map(t => t.category))];
+  const ingresosPorCategoria = {};
+  const gastosPorCategoria = {};
+
+  categorias.forEach(cat => {
+    ingresosPorCategoria[cat] = transactions
+      .filter(t => t.category === cat && t.type === "income")
+      .reduce((acc, t) => acc + t.amount, 0);
+
+    gastosPorCategoria[cat] = transactions
+      .filter(t => t.category === cat && t.type === "expense" && (!["deudas_personales", "deudas_negocio"].includes(t.category) || t.pagada))
+      .reduce((acc, t) => acc + t.amount, 0);
+  });
+
+  // Destruir gráfico anterior por categoría si existe
+  if (window.categoriaComparativaChartInstance instanceof Chart) {
+    window.categoriaComparativaChartInstance.destroy();
+  }
+
+  const barCtx = document.getElementById("categoriaComparativaChart").getContext("2d");
+
+  window.categoriaComparativaChartInstance = new Chart(barCtx, {
+    type: "bar",
+    data: {
+      labels: categorias,
+      datasets: [
+        {
+          label: "Ingresos",
+          data: categorias.map(cat => ingresosPorCategoria[cat]),
+          backgroundColor: "#198754"
+        },
+        {
+          label: "Gastos",
+          data: categorias.map(cat => gastosPorCategoria[cat]),
+          backgroundColor: "#dc3545"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: value => formatoCOP.format(value)
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: context => `${context.dataset.label}: ${formatoCOP.format(context.raw)}`
+          }
+        }
+      }
+    }
+  });
+}
+
+
+
+// Al agregar o editar, convertir el monto formateado a número decimal para almacenar y calcular
+function parseAmount(value) {
+  if (!value) return 0;
+  // Quitar puntos y cambiar coma por punto para parsear
+  value = value.replace(/\./g, "").replace(/,/g, ".");
+  return parseFloat(value) || 0;
+}
+
+
+
+// Modifica la función editTransaction para que el input muestre monto formateado
+function editTransaction(index) {
+  const t = transactions[index];
+  document.getElementById("date").value = t.date;
+  document.getElementById("description").value = t.description;
+  
+  // Formatear monto para mostrar en input
+  document.getElementById("amount").value = t.amount
+    .toFixed(2) // 2 decimales
+    .replace(".", ",") // reemplazar decimal punto por coma
+    .replace(/\B(?=(\d{3})+(?!\d))/g, "."); // miles con puntos
+  
+  document.getElementById("type").value = t.type;
+  document.getElementById("category").value = t.category;
+  editIndex = index;
+  document.getElementById("deudaPagada").checked = !!t.pagada;
+document.getElementById("pagoContainer").style.display = 
+  t.category === "deudas_personales" || t.category === "deudas_negocio" 
+  ? "block" : "none";
+
+}
+
+
+document.getElementById("category").addEventListener("change", function () {
+  const category = this.value;
+  const show = category === "deudas_personales" || category === "deudas_negocio";
+  document.getElementById("pagoContainer").style.display = show ? "block" : "none";
+});
+
+
+function login() {
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value.trim();
+
+  const validUser = "mike";
+  const validPass = "Ahoraquey8";
+
+  if (user === validUser && pass === validPass) {
+    showToast("¡Bienvenido al sistema!", "success");
+    document.getElementById("loginError").style.display = "none";
+
+    setTimeout(() => {
+      // Oculta completamente el modal del login
+      const modal = document.getElementById("loginModal");
+      if (modal) {
+        modal.classList.remove("show");
+        modal.style.display = "none";
+        document.body.classList.remove("modal-open");
+        document.body.style.overflow = "auto";
+      }
+
+      // Muestra el contenido de la app
+      document.getElementById("mainContent").style.display = "block";
+    }, 1000);
+  } else {
+    document.getElementById("loginError").style.display = "block";
+    showToast("Usuario o contraseña incorrectos", "error");
+  }
+}
+
+
+function showToast(message, type = "success") {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.className = `toast show ${type}`;
+  setTimeout(() => {
+    toast.className = "toast";
+  }, 3000);
+}
+
+
+
+  renderTransactions();
+  updateSummaryAndCharts();
+  document.getElementById("toggleDarkMode").addEventListener("click", function () {
+  document.body.classList.toggle("dark-mode");
+});
+
+</script>
+
+
+
+
+
+
+</body>
+</html>
