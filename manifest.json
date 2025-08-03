@@ -1,0 +1,47 @@
+{
+  "name": "Mi Agenda Personal",
+  "short_name": "Agenda",
+  "description": "Organiza y visualiza tus compromisos fácilmente.",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icons/screenshot1.png",
+      "type": "image/png",
+      "sizes": "540x720"
+    },
+    {
+      "src": "icons/screenshot2.png",
+      "type": "image/png",
+      "sizes": "540x720"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "categories": ["productividad", "agenda", "organizador"],
+  "iarc_rating_id": "e12345678",  // opcional para Microsoft Store
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "id": "/power.github.io/"
+}
